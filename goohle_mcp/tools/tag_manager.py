@@ -275,7 +275,28 @@ async def gtm_get_version(
     )
 
 
+@mcp.tool(name="gtm_get_install_snippet", title="Get GTM install code", annotations=READ)
+async def gtm_get_install_snippet(container_path: ContainerPath) -> dict[str, Any]:
+    """Returns the <head> and <body> code to paste into the website to install the container."""
+    path = _check(container_path, _CONTAINER, "container")
+    response = await execute(_containers().snippet(path=path))
+    return {"head": response.get("snippet"), "body": response.get("noscriptSnippet")}
+
+
 # --- Write tools --------------------------------------------------------------
+
+
+@mcp.tool(name="gtm_create_container", title="Create GTM container", annotations=CREATE)
+async def gtm_create_container(
+    account_id: Annotated[str, Field(description="GTM account ID or 'accounts/<id>'.")],
+    name: Annotated[str, Field(description="e.g. 'example.com'.")],
+    domains: Annotated[list[str] | None, Field(description="e.g. ['example.com', 'www.example.com'].")] = None,
+    dry_run: DryRun = False,
+) -> dict[str, Any]:
+    """Creates a web container. Install it with the code from gtm_get_install_snippet."""
+    body = drop_empty({"name": name, "usageContext": ["web"], "domainName": domains})
+    request = _containers().create(parent=_account_path(account_id), body=body)
+    return await mutate("gtm_create_container", request, dry_run=dry_run)
 
 
 @mcp.tool(name="gtm_create_workspace", title="Create GTM workspace", annotations=CREATE)

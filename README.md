@@ -24,14 +24,14 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 
 ---
 
-## ابزارها (۴۵ ابزار)
+## ابزارها (۴۹ ابزار)
 
 ### Google Analytics 4 (`ga4_*`)
 **خواندن:** `ga4_list_accounts` · `ga4_get_property` · `ga4_list_data_streams` · `ga4_get_metadata` ·
 `ga4_run_report` · `ga4_run_realtime_report` · `ga4_list_custom_definitions` · `ga4_list_key_events` ·
 `ga4_get_data_retention` · `ga4_list_annotations` · `ga4_search_change_history`
 
-**تغییر:** `ga4_create_custom_dimension` · `ga4_update_custom_dimension` · `ga4_archive_custom_dimension` ·
+**تغییر:** `ga4_create_property` · `ga4_create_web_stream` · `ga4_create_custom_dimension` · `ga4_update_custom_dimension` · `ga4_archive_custom_dimension` ·
 `ga4_create_custom_metric` · `ga4_archive_custom_metric` · `ga4_create_key_event` · `ga4_delete_key_event` ·
 `ga4_update_data_retention` · `ga4_update_property` · `ga4_create_annotation`
 
@@ -42,9 +42,9 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 
 ### Tag Manager (`gtm_*`)
 **خواندن:** `gtm_list_accounts` · `gtm_list_containers` · `gtm_list_workspaces` · `gtm_list_entities` (تگ، تریگر، متغیر، فولدر، تمپلیت، …) ·
-`gtm_get_entity` · `gtm_list_built_in_variables` · `gtm_get_workspace_status` · `gtm_quick_preview` · `gtm_list_versions` · `gtm_get_version`
+`gtm_get_entity` · `gtm_list_built_in_variables` · `gtm_get_workspace_status` · `gtm_quick_preview` · `gtm_list_versions` · `gtm_get_version` · `gtm_get_install_snippet`
 
-**تغییر:** `gtm_create_workspace` · `gtm_create_entity` · `gtm_update_entity` · `gtm_delete_entity` · `gtm_revert_entity` ·
+**تغییر:** `gtm_create_container` · `gtm_create_workspace` · `gtm_create_entity` · `gtm_update_entity` · `gtm_delete_entity` · `gtm_revert_entity` ·
 `gtm_set_built_in_variables` · `gtm_create_version` · `gtm_publish_version`
 
 ### پرامپت‌های آماده (در Claude Code به شکل اسلش‌کامند)

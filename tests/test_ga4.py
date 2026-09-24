@@ -127,3 +127,11 @@ async def test_annotation_uses_date_parts(http):
 async def test_key_event_value_requires_currency(http):
     with pytest.raises(ToolError, match="default_currency"):
         await call("ga4_create_key_event", property_id="1", event_name="purchase", default_value=10, dry_run=True)
+
+
+async def test_create_property_and_web_stream_requests(http):
+    prop = await call("ga4_create_property", account_id="404", display_name="example.com", time_zone="Asia/Tehran", dry_run=True)
+    assert prop["would_send"]["uri"].endswith("/v1beta/properties")
+    assert prop["would_send"]["body"]["parent"] == "accounts/404"
+    stream = await call("ga4_create_web_stream", property_id="55", default_uri="https://example.com", display_name="web", dry_run=True)
+    assert stream["would_send"]["body"]["webStreamData"] == {"defaultUri": "https://example.com"}

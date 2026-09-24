@@ -75,3 +75,12 @@ async def test_built_in_variables_are_sent_as_repeated_type(http):
     )
     uri = result["would_send"]["uri"]
     assert "type=clickText" in uri and "type=clickUrl" in uri
+
+
+async def test_create_container_and_snippet(http):
+    result = await call("gtm_create_container", account_id="637", name="example.com", domains=["example.com"], dry_run=True)
+    assert result["would_send"]["uri"].endswith("/tagmanager/v2/accounts/637/containers")
+    assert result["would_send"]["body"] == {"name": "example.com", "usageContext": ["web"], "domainName": ["example.com"]}
+    http.queue({"snippet": "<script>..</script>", "noscriptSnippet": "<noscript>..</noscript>"})
+    snippet = await call("gtm_get_install_snippet", container_path="accounts/637/containers/9")
+    assert snippet == {"head": "<script>..</script>", "body": "<noscript>..</noscript>"}

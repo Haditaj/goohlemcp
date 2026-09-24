@@ -405,6 +405,44 @@ async def ga4_search_change_history(
 # --- Write tools --------------------------------------------------------------
 
 
+@mcp.tool(name="ga4_create_property", title="Create GA4 property", annotations=CREATE)
+async def ga4_create_property(
+    account_id: Annotated[str, Field(description="GA4 account ID, e.g. '1234567' or 'accounts/1234567'.")],
+    display_name: Annotated[str, Field(description="e.g. 'example.com'.")],
+    time_zone: Annotated[str, Field(description="IANA name, e.g. 'Asia/Tehran'.")],
+    currency_code: Annotated[str, Field(description="ISO 4217, e.g. 'USD' or 'IRR'.")] = "USD",
+    industry_category: Annotated[str | None, Field(description="e.g. 'SHOPPING', 'TECHNOLOGY'.")] = None,
+    dry_run: DryRun = False,
+) -> dict[str, Any]:
+    """Creates a new GA4 property in an account. Add a web stream next with ga4_create_web_stream."""
+    account = str(account_id).strip().removeprefix("accounts/")
+    if not account.isdigit():
+        raise ToolError(f"'{account_id}' is not a GA4 account ID; see ga4_list_accounts.")
+    body = drop_empty(
+        {
+            "parent": f"accounts/{account}",
+            "displayName": display_name,
+            "timeZone": time_zone,
+            "currencyCode": currency_code,
+            "industryCategory": industry_category,
+        }
+    )
+    return await mutate("ga4_create_property", _admin().properties().create(body=body), dry_run=dry_run)
+
+
+@mcp.tool(name="ga4_create_web_stream", title="Create GA4 web data stream", annotations=CREATE)
+async def ga4_create_web_stream(
+    property_id: PropertyId,
+    default_uri: Annotated[str, Field(description="Site URL, e.g. 'https://example.com'.")],
+    display_name: Annotated[str, Field(description="e.g. 'example.com - web'.")],
+    dry_run: DryRun = False,
+) -> dict[str, Any]:
+    """Creates a web data stream; the response contains its G-XXXX measurement ID for GTM."""
+    body = {"type": "WEB_DATA_STREAM", "displayName": display_name, "webStreamData": {"defaultUri": default_uri}}
+    request = _admin().properties().dataStreams().create(parent=property_name(property_id), body=body)
+    return await mutate("ga4_create_web_stream", request, dry_run=dry_run)
+
+
 @mcp.tool(name="ga4_create_custom_dimension", title="Create GA4 custom dimension", annotations=CREATE)
 async def ga4_create_custom_dimension(
     property_id: PropertyId,
