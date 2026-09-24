@@ -92,13 +92,20 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 
 به [uv](https://docs.astral.sh/uv/getting-started/installation/) نیاز دارید:
 
-```bash
-# نصب از گیت‌هاب
-uv tool install git+https://github.com/haditaj/goohlemcp
+**راه سریع (macOS و Linux):** این اسکریپت مراحل ۲ تا ۴ رو یک‌جا انجام می‌ده:
 
-# اگه ریپو خصوصیه:
-git clone https://github.com/haditaj/goohlemcp && uv tool install ./goohlemcp
+```bash
+curl -LsSfO https://raw.githubusercontent.com/haditaj/goohlemcp/claude/vibrant-knuth-ovrixn/scripts/install.sh
+bash install.sh ~/Downloads/client_secret.json write
 ```
+
+**نصب دستی:**
+
+```bash
+uv tool install "git+https://github.com/haditaj/goohlemcp@claude/vibrant-knuth-ovrixn"
+```
+
+> بعد از merge شدن در `main`، بخش `@claude/vibrant-knuth-ovrixn` رو می‌تونید حذف کنید.
 
 ### ۳) لاگین با گوگل (فقط یک بار)
 
