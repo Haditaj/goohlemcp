@@ -6,6 +6,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
+from goohle_mcp import config
 from goohle_mcp.app import CHANGE, CREATE, READ, mcp
 from goohle_mcp.google_api import execute, mutate, service
 from goohle_mcp.tools.common import DryRun, resolve_date
@@ -29,6 +30,11 @@ class SearchFilter(BaseModel):
     expression: str = Field(description="Value to match. Countries are ISO 3166-1 alpha-3 (e.g. 'irn'); devices are DESKTOP/MOBILE/TABLET.")
 
 
+def _site(site_url: str) -> str:
+    config.require_allowed("gsc", site_url)
+    return site_url
+
+
 def _gsc() -> Any:
     return service("searchconsole", "v1")
 
@@ -37,7 +43,9 @@ def _gsc() -> Any:
 async def gsc_list_sites() -> dict[str, Any]:
     """Lists Search Console properties the signed-in user can access, with permission level."""
     response = await execute(_gsc().sites().list())
-    return {"sites": response.get("siteEntry", [])}
+    allowed = config.allowlist("gsc")
+    sites = response.get("siteEntry", [])
+    return {"sites": [x for x in sites if allowed is None or x.get("siteUrl") in allowed]}
 
 
 @mcp.tool(name="gsc_search_analytics", title="Query Search Console performance", annotations=READ)
@@ -82,7 +90,7 @@ async def gsc_search_analytics(
         body["dimensionFilterGroups"] = [
             {"groupType": "and", "filters": [f.model_dump() for f in filters]}
         ]
-    response = await execute(_gsc().searchanalytics().query(siteUrl=site_url, body=body))
+    response = await execute(_gsc().searchanalytics().query(siteUrl=_site(site_url), body=body))
     rows = []
     for row in response.get("rows", []):
         item: dict[str, Any] = dict(zip(dims, row.get("keys", [])))
@@ -114,7 +122,7 @@ async def gsc_inspect_url(
 
     Note: the API cannot request indexing; that stays a manual step in Search Console.
     """
-    body = {"inspectionUrl": url, "siteUrl": site_url, "languageCode": language_code}
+    body = {"inspectionUrl": url, "siteUrl": _site(site_url), "languageCode": language_code}
     response = await execute(_gsc().urlInspection().index().inspect(body=body))
     return response.get("inspectionResult", response)
 
@@ -122,7 +130,7 @@ async def gsc_inspect_url(
 @mcp.tool(name="gsc_list_sitemaps", title="List sitemaps", annotations=READ)
 async def gsc_list_sitemaps(site_url: SiteUrl) -> dict[str, Any]:
     """Lists submitted sitemaps with last download time, warnings, errors and URL counts."""
-    response = await execute(_gsc().sitemaps().list(siteUrl=site_url))
+    response = await execute(_gsc().sitemaps().list(siteUrl=_site(site_url)))
     return {"sitemaps": response.get("sitemap", [])}
 
 
@@ -133,7 +141,7 @@ async def gsc_submit_sitemap(
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
     """Submits (or resubmits) a sitemap so Google fetches it again."""
-    request = _gsc().sitemaps().submit(siteUrl=site_url, feedpath=sitemap_url)
+    request = _gsc().sitemaps().submit(siteUrl=_site(site_url), feedpath=sitemap_url)
     return await mutate("gsc_submit_sitemap", request, dry_run=dry_run)
 
 
@@ -144,5 +152,5 @@ async def gsc_delete_sitemap(
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
     """Removes a sitemap from Search Console (the file on the site is untouched)."""
-    request = _gsc().sitemaps().delete(siteUrl=site_url, feedpath=sitemap_url)
+    request = _gsc().sitemaps().delete(siteUrl=_site(site_url), feedpath=sitemap_url)
     return await mutate("gsc_delete_sitemap", request, dry_run=dry_run)

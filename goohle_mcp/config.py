@@ -41,3 +41,32 @@ def service_account_file() -> Path | None:
 def audit_log_file() -> Path:
     override = os.environ.get("GOOHLE_MCP_AUDIT_LOG")
     return Path(override).expanduser() if override else config_dir() / "audit.jsonl"
+
+
+# Optional allowlists (comma-separated). When set, tools refuse anything else.
+_ALLOWLIST_VARS = {
+    "ga4": "GOOHLE_MCP_GA4_PROPERTIES",  # e.g. 489808888
+    "gsc": "GOOHLE_MCP_GSC_SITES",  # e.g. sc-domain:moa.coffee
+    "gtm": "GOOHLE_MCP_GTM_CONTAINERS",  # container IDs, e.g. 260880634
+}
+
+
+def allowlist(kind: str) -> set[str] | None:
+    raw = os.environ.get(_ALLOWLIST_VARS[kind], "").strip()
+    if not raw:
+        return None
+    values = {v.strip() for v in raw.split(",") if v.strip()}
+    if kind == "ga4":
+        values = {v.removeprefix("properties/") for v in values}
+    return values
+
+
+def require_allowed(kind: str, value: str) -> None:
+    allowed = allowlist(kind)
+    if allowed is not None and value not in allowed:
+        from mcp.server.mcpserver.exceptions import ToolError
+
+        raise ToolError(
+            f"'{value}' is outside the resources this server may use "
+            f"({_ALLOWLIST_VARS[kind]}={','.join(sorted(allowed))}). Do not retry with it."
+        )

@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from goohle_mcp import config
 from goohle_mcp.app import CHANGE, CREATE, READ, mcp
 from goohle_mcp.google_api import collect, execute, mutate, service
 from goohle_mcp.tools.common import DryRun, drop_empty
@@ -72,7 +73,19 @@ def _check(path: str, pattern: str, what: str) -> str:
     value = path.strip().strip("/")
     if not re.fullmatch(pattern, value):
         raise ToolError(f"'{path}' is not a GTM {what} path (expected {pattern.replace(chr(92) + 'd+', '<id>')}).")
+    _require_container(value)
     return value
+
+
+def _require_container(path: str) -> None:
+    match = re.match(r"accounts/\d+/containers/(\d+)", path)
+    if match:
+        config.require_allowed("gtm", match.group(1))
+
+
+def _container_allowed(container_id: str | None) -> bool:
+    allowed = config.allowlist("gtm")
+    return allowed is None or container_id in allowed
 
 
 def _account_path(account_id: str) -> str:
@@ -88,6 +101,7 @@ def _entity(path: str) -> tuple[str, str]:
             "'accounts/<id>/containers/<id>/workspaces/<id>/<type>/<id>' with type one of "
             f"{', '.join(_ENTITY_TYPES)}."
         )
+    _require_container(match.group(0))
     return match.group(0), match.group(2)
 
 
@@ -135,6 +149,7 @@ async def gtm_list_containers(
                 }
             )
             for c in containers
+            if _container_allowed(c.get("containerId"))
         ]
     }
 
@@ -294,6 +309,8 @@ async def gtm_create_container(
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
     """Creates a web container. Install it with the code from gtm_get_install_snippet."""
+    if config.allowlist("gtm") is not None:
+        raise ToolError("Creating containers is disabled while GOOHLE_MCP_GTM_CONTAINERS is set.")
     body = drop_empty({"name": name, "usageContext": ["web"], "domainName": domains})
     request = _containers().create(parent=_account_path(account_id), body=body)
     return await mutate("gtm_create_container", request, dry_run=dry_run)
@@ -435,6 +452,7 @@ async def gtm_publish_version(
     path = version_path.strip().strip("/")
     if not _VERSION.fullmatch(path):
         raise ToolError(f"'{version_path}' is not a GTM version path.")
+    _require_container(path)
     request = _containers().versions().publish(path=path)
     response = await mutate("gtm_publish_version", request, dry_run=dry_run, level="publish")
     if dry_run or not isinstance(response, dict):

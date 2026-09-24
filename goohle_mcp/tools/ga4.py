@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import Field
 
+from goohle_mcp import config
 from goohle_mcp.app import CHANGE, CREATE, READ, mcp
 from goohle_mcp.google_api import collect, execute, mutate, service
 from goohle_mcp.tools.common import DryRun, changed_fields, drop_empty, resolve_date
@@ -68,6 +69,7 @@ def property_name(property_id: str) -> str:
             f"'{property_id}' is not a GA4 property ID. Use the numeric ID "
             "(e.g. 123456789) from ga4_list_accounts, not a G-XXXX measurement ID."
         )
+    config.require_allowed("ga4", value)
     return f"properties/{value}"
 
 
@@ -78,6 +80,7 @@ def _child_name(name: str, collection: str) -> str:
             f"'{name}' is not a {collection} resource name; expected "
             f"'properties/<id>/{collection}/<id>' as returned by the list tools."
         )
+    property_name(value.split("/")[1])
     return value
 
 
@@ -139,11 +142,12 @@ def format_report(response: dict[str, Any], offset: int = 0) -> dict[str, Any]:
 @mcp.tool(name="ga4_list_accounts", title="List GA4 accounts and properties", annotations=READ)
 async def ga4_list_accounts() -> dict[str, Any]:
     """Lists every GA4 account and property the signed-in user can access, with their IDs."""
+    allowed = config.allowlist("ga4")
     summaries = await collect(
         lambda token: _admin().accountSummaries().list(pageSize=200, pageToken=token),
         "accountSummaries",
     )
-    return {
+    result = {
         "accounts": [
             {
                 "account": s.get("account"),
@@ -155,11 +159,15 @@ async def ga4_list_accounts() -> dict[str, Any]:
                         "property_type": p.get("propertyType"),
                     }
                     for p in s.get("propertySummaries", [])
+                    if allowed is None or p.get("property", "").removeprefix("properties/") in allowed
                 ],
             }
             for s in summaries
         ]
     }
+    if allowed is not None:
+        result["accounts"] = [a for a in result["accounts"] if a["properties"]]
+    return result
 
 
 @mcp.tool(name="ga4_get_property", title="Get GA4 property settings", annotations=READ)
@@ -396,6 +404,8 @@ async def ga4_search_change_history(
     }
     if property_id:
         body["property"] = property_name(property_id)
+    elif config.allowlist("ga4") is not None:
+        raise ToolError("property_id is required while GOOHLE_MCP_GA4_PROPERTIES limits the allowed properties.")
     response = await execute(
         _admin().accounts().searchChangeHistoryEvents(account=f"accounts/{account}", body=body)
     )
@@ -415,6 +425,8 @@ async def ga4_create_property(
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
     """Creates a new GA4 property in an account. Add a web stream next with ga4_create_web_stream."""
+    if config.allowlist("ga4") is not None:
+        raise ToolError("Creating properties is disabled while GOOHLE_MCP_GA4_PROPERTIES is set.")
     account = str(account_id).strip().removeprefix("accounts/")
     if not account.isdigit():
         raise ToolError(f"'{account_id}' is not a GA4 account ID; see ga4_list_accounts.")

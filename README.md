@@ -215,6 +215,11 @@ claude mcp add goohle --scope user \
 | `GOOHLE_MCP_TOKEN_FILE` | `<config>/token.json` | مسیر توکن OAuth |
 | `GOOHLE_MCP_SERVICE_ACCOUNT_FILE` | - | کلید Service Account (به جای OAuth) |
 | `GOOHLE_MCP_AUDIT_LOG` | `<config>/audit.jsonl` | لاگ تغییرات |
+| `GOOHLE_MCP_GA4_PROPERTIES` | - | فقط این پراپرتی‌های GA4 (با کاما جدا کنید)، مثلاً `489808888` |
+| `GOOHLE_MCP_GSC_SITES` | - | فقط این سایت‌های Search Console، مثلاً `sc-domain:example.com` |
+| `GOOHLE_MCP_GTM_CONTAINERS` | - | فقط این کانتینرهای GTM (شناسه‌ی عددی)، مثلاً `260880634` |
+
+اگه این سه متغیر رو تنظیم کنید، سرور بقیه‌ی پراپرتی‌ها، سایت‌ها و کانتینرها رو در لیست‌ها نشون نمی‌ده و هر درخواستی که بهشون مربوط باشه رد می‌شه. ساختن پراپرتی یا کانتینر جدید هم غیرفعال می‌شه.
 
 اگه هیچ‌کدوم از این دو (توکن یا Service Account) نباشه، از
 [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) استفاده می‌شه.
