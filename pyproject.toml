@@ -1,0 +1,31 @@
+[project]
+name = "goohle-mcp"
+version = "0.1.0"
+description = "One MCP server for Google Analytics 4, Search Console and Tag Manager: read data and (optionally) make changes from Claude Code."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["mcp", "claude", "google analytics", "ga4", "search console", "tag manager", "gtm"]
+dependencies = [
+    "mcp>=2.2,<3",
+    "google-api-python-client>=2.150",
+    "google-auth>=2.40",
+    "google-auth-httplib2>=0.2",
+    "google-auth-oauthlib>=1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+goohle-mcp = "goohle_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["goohle_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
