@@ -126,13 +126,13 @@ goohle-mcp status
 
 ```bash
 # فقط خواندن (پیشنهاد برای شروع)
-claude mcp add goohle --scope user -- goohle-mcp
+claude mcp add goohle --scope user -- "$(uv tool dir --bin)/goohle-mcp"
 
 # خواندن و تغییر (بدون انتشار زنده‌ی GTM)
-claude mcp add goohle --scope user -e GOOHLE_MCP_MODE=write -- goohle-mcp
+claude mcp add goohle --scope user -e GOOHLE_MCP_MODE=write -- "$(uv tool dir --bin)/goohle-mcp"
 
 # با اجازه‌ی انتشار GTM
-claude mcp add goohle --scope user -e GOOHLE_MCP_MODE=publish -- goohle-mcp
+claude mcp add goohle --scope user -e GOOHLE_MCP_MODE=publish -- "$(uv tool dir --bin)/goohle-mcp"
 ```
 
 برای عوض کردن سطح دسترسی، اول `claude mcp remove goohle` و بعد دوباره `add` کنید.
@@ -163,7 +163,7 @@ claude mcp add goohle --scope user -e GOOHLE_MCP_MODE=publish -- goohle-mcp
 ```bash
 claude mcp add goohle --scope user \
   -e GOOHLE_MCP_SERVICE_ACCOUNT_FILE=/path/to/key.json \
-  -e GOOHLE_MCP_MODE=write -- goohle-mcp
+  -e GOOHLE_MCP_MODE=write -- "$(uv tool dir --bin)/goohle-mcp"
 ```
 
 ---
