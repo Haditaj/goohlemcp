@@ -24,7 +24,7 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 
 ---
 
-## ابزارها (۴۹ ابزار)
+## ابزارها (۵۳ ابزار)
 
 ### Google Analytics 4 (`ga4_*`)
 **خواندن:** `ga4_list_accounts` · `ga4_get_property` · `ga4_list_data_streams` · `ga4_get_metadata` ·
@@ -46,6 +46,11 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 
 **تغییر:** `gtm_create_container` · `gtm_create_workspace` · `gtm_create_entity` · `gtm_update_entity` · `gtm_delete_entity` · `gtm_revert_entity` ·
 `gtm_set_built_in_variables` · `gtm_create_version` · `gtm_publish_version`
+
+### Google Sheets (`sheets_*`)
+`sheets_get_info` (تب‌ها و سطر عنوان هر تب) · `sheets_read_range` · `sheets_append_csv` (اضافه کردن ردیف‌های یک فایل CSV به انتهای یک تب؛ اگه ستون‌ها دقیقاً با سطر عنوان تب یکی نباشن، چیزی نوشته نمی‌شه) · `sheets_write_range`
+
+گزارش‌های `ga4_run_report` و `gsc_search_analytics` گزینه‌ی `save_csv` دارن که همه‌ی ردیف‌ها رو مستقیم در فایل CSV ذخیره می‌کنه.
 
 ### پرامپت‌های آماده (در Claude Code به شکل اسلش‌کامند)
 - `/mcp__goohle__tracking_audit`: بررسی کامل GA4 و GTM (Measurement ID، تگ‌های بدون تریگر، Key Eventهای بدون داده، پارامترهای ثبت‌نشده، …)
@@ -83,6 +88,7 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
    - Google Analytics Data API
    - Google Search Console API
    - Tag Manager API
+   - Google Sheets API (اختیاری، برای ابزارهای `sheets_*`)
 3. در **Google Auth Platform → Branding / Audience** صفحه‌ی OAuth consent رو بسازید.
    نوع External رو انتخاب کنید و ایمیل خودتون رو در **Test users** اضافه کنید.
    > توجه: وقتی اپ در حالت *Testing* باشه، توکن هر ۷ روز منقضی می‌شه. برای استفاده‌ی طولانی‌مدت یا اپ رو **Publish** کنید (برای استفاده‌ی شخصی نیازی به بررسی گوگل نیست، فقط یه صفحه‌ی هشدار «unverified» یک بار نشون داده می‌شه)، یا هر هفته `goohle-mcp auth` رو دوباره اجرا کنید.
@@ -218,6 +224,7 @@ claude mcp add goohle --scope user \
 | `GOOHLE_MCP_GA4_PROPERTIES` | - | فقط این پراپرتی‌های GA4 (با کاما جدا کنید)، مثلاً `489808888` |
 | `GOOHLE_MCP_GSC_SITES` | - | فقط این سایت‌های Search Console، مثلاً `sc-domain:example.com` |
 | `GOOHLE_MCP_GTM_CONTAINERS` | - | فقط این کانتینرهای GTM (شناسه‌ی عددی)، مثلاً `260880634` |
+| `GOOHLE_MCP_SHEETS` | - | فقط این اسپردشیت‌ها (شناسه‌ی داخل لینک) |
 
 اگه این سه متغیر رو تنظیم کنید، سرور بقیه‌ی پراپرتی‌ها، سایت‌ها و کانتینرها رو در لیست‌ها نشون نمی‌ده و هر درخواستی که بهشون مربوط باشه رد می‌شه. ساختن پراپرتی یا کانتینر جدید هم غیرفعال می‌شه.
 

@@ -7,7 +7,7 @@ from mcp_types import ToolAnnotations
 
 INSTRUCTIONS = """\
 Tools for one person's Google marketing stack: Google Analytics 4 (ga4_*),
-Search Console (gsc_*) and Google Tag Manager (gtm_*).
+Search Console (gsc_*), Google Tag Manager (gtm_*) and Google Sheets (sheets_*).
 
 How to work:
 - Start with a list tool (ga4_list_accounts, gsc_list_sites, gtm_list_accounts) to find IDs.
@@ -18,6 +18,8 @@ How to work:
 - GTM edits happen in a workspace and are not live until a version is created
   (gtm_create_version) and published (gtm_publish_version). Run gtm_quick_preview
   to catch compiler errors first. Never publish without explicit user approval.
+- For exports into a sheet: run the report with save_csv, shape the CSV to match the
+  tab's header (sheets_get_info), then sheets_append_csv. Never paste large data by hand.
 - After a meaningful GA4 or GTM change, offer to add a GA4 annotation
   (ga4_create_annotation) so the change is visible in reports later.
 """

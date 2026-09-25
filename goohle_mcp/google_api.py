@@ -34,6 +34,7 @@ _API_NAMES = {
     "analyticsdata": "Google Analytics Data API",
     "searchconsole": "Google Search Console API",
     "tagmanager": "Tag Manager API",
+    "sheets": "Google Sheets API",
 }
 
 
@@ -128,13 +129,21 @@ def describe_request(request: HttpRequest) -> dict[str, Any]:
     return {"method": request.method, "uri": uri, "body": body}
 
 
-async def mutate(tool: str, request: HttpRequest, *, dry_run: bool, level: str = "write") -> Any:
+async def mutate(
+    tool: str,
+    request: HttpRequest,
+    *,
+    dry_run: bool,
+    level: str = "write",
+    summary: dict[str, Any] | None = None,
+) -> Any:
     """Executes a change after checking the permission mode.
 
     With `dry_run` the request is returned instead of sent, in any mode, so the
-    exact change can be reviewed before enabling writes.
+    exact change can be reviewed before enabling writes. `summary` replaces the
+    full request in the dry-run result and audit log (for very large bodies).
     """
-    summary = describe_request(request)
+    summary = summary or describe_request(request)
     if dry_run:
         _audit(tool, summary, "dry_run")
         return {"dry_run": True, "would_send": summary}
@@ -253,4 +262,6 @@ def _api_from_uri(uri: str) -> str:
         return "searchconsole"
     if host.startswith("tagmanager"):
         return "tagmanager"
+    if host.startswith("sheets"):
+        return "sheets"
     return ""

@@ -12,7 +12,7 @@ async def test_tool_catalogue_is_consistent():
     names = [t.name for t in tools]
     assert len(names) == len(set(names))
     for tool in tools:
-        assert tool.name.split("_")[0] in {"ga4", "gsc", "gtm"}
+        assert tool.name.split("_")[0] in {"ga4", "gsc", "gtm", "sheets"}
         assert tool.description
         props = tool.input_schema.get("properties", {})
         if tool.annotations.read_only_hint:

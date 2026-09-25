@@ -18,6 +18,7 @@ READ_SCOPES = [
     "https://www.googleapis.com/auth/analytics.readonly",
     "https://www.googleapis.com/auth/webmasters.readonly",
     "https://www.googleapis.com/auth/tagmanager.readonly",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
 
 WRITE_SCOPES = READ_SCOPES + [
@@ -26,6 +27,7 @@ WRITE_SCOPES = READ_SCOPES + [
     "https://www.googleapis.com/auth/tagmanager.edit.containers",
     "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
     "https://www.googleapis.com/auth/tagmanager.publish",
+    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 SETUP_HINT = (

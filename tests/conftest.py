@@ -12,7 +12,7 @@ from google.auth.credentials import AnonymousCredentials
 from goohle_mcp import auth, google_api
 from goohle_mcp import prompts  # noqa: F401  (registers prompts)
 from goohle_mcp.app import mcp
-from goohle_mcp.tools import ga4, search_console, tag_manager  # noqa: F401  (registers tools)
+from goohle_mcp.tools import ga4, search_console, sheets, tag_manager  # noqa: F401  (registers tools)
 
 
 class FakeHttp:

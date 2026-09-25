@@ -14,7 +14,7 @@ def _serve(_: argparse.Namespace) -> None:
     # Importing the tool modules registers their tools on the shared server.
     from goohle_mcp import prompts  # noqa: F401
     from goohle_mcp.app import mcp
-    from goohle_mcp.tools import ga4, search_console, tag_manager  # noqa: F401
+    from goohle_mcp.tools import ga4, search_console, sheets, tag_manager  # noqa: F401
 
     logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     mcp.run("stdio")

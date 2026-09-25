@@ -48,6 +48,7 @@ _ALLOWLIST_VARS = {
     "ga4": "GOOHLE_MCP_GA4_PROPERTIES",  # e.g. 489808888
     "gsc": "GOOHLE_MCP_GSC_SITES",  # e.g. sc-domain:moa.coffee
     "gtm": "GOOHLE_MCP_GTM_CONTAINERS",  # container IDs, e.g. 260880634
+    "sheets": "GOOHLE_MCP_SHEETS",  # spreadsheet IDs from the URL
 }
 
 
