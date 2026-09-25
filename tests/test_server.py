@@ -56,3 +56,14 @@ async def test_failed_write_is_audited(http, monkeypatch, tmp_path):
         await call("gtm_delete_entity", path="accounts/1/containers/2/workspaces/3/tags/4")
     entry = json.loads((tmp_path / "audit.jsonl").read_text().splitlines()[-1])
     assert entry["status"] == "error" and entry["method"] == "DELETE"
+
+
+async def test_network_errors_become_readable_tool_errors(http, monkeypatch):
+    import socket
+
+    def boom(*_, **__):
+        raise socket.timeout("timed out")
+
+    monkeypatch.setattr(http, "request", boom)
+    with pytest.raises(ToolError, match="Connection to Google failed: .*timed out"):
+        await call("gsc_list_sites")

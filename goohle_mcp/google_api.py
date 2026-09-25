@@ -16,6 +16,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import anyio
 import google_auth_httplib2
+import httplib2
+from google.auth.exceptions import RefreshError
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest, build_http
@@ -55,9 +57,20 @@ def reset_services() -> None:
         _services.clear()
 
 
+_HTTP_TIMEOUT = 120  # seconds; VPN links can be slow.
+_MAX_PARALLEL = 4
+_refresh_lock = threading.Lock()
+_limiter: anyio.CapacityLimiter | None = None
+
+
 def _new_http() -> Any:
     # httplib2 connections are not thread-safe, so every request gets its own.
-    return google_auth_httplib2.AuthorizedHttp(auth.get_credentials(), http=build_http())
+    creds = auth.get_credentials()
+    # Refresh once under a lock so parallel calls don't race on the same token.
+    with _refresh_lock:
+        if not creds.valid:
+            creds.refresh(google_auth_httplib2.Request(build_http()))
+    return google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http(timeout=_HTTP_TIMEOUT))
 
 
 def _run(request: HttpRequest, retries: int) -> Any:
@@ -65,13 +78,28 @@ def _run(request: HttpRequest, retries: int) -> Any:
 
 
 async def execute(request: HttpRequest, *, retries: int = 2) -> Any:
-    """Executes a request off the event loop, translating API errors."""
+    """Executes a request off the event loop, translating every failure into a ToolError."""
+    global _limiter
+    if _limiter is None:
+        _limiter = anyio.CapacityLimiter(_MAX_PARALLEL)
     try:
-        return await anyio.to_thread.run_sync(_run, request, retries)
+        return await anyio.to_thread.run_sync(_run, request, retries, limiter=_limiter)
     except HttpError as exc:
         raise ToolError(describe_http_error(exc)) from exc
     except auth.AuthError as exc:
         raise ToolError(str(exc)) from exc
+    except RefreshError as exc:
+        raise ToolError(
+            f"Google sign-in could not be refreshed ({exc}). If it says invalid_grant, the "
+            "token expired (OAuth app in Testing mode): run `goohle-mcp auth --client-secrets ...` "
+            "again and restart Claude."
+        ) from exc
+    except Exception as exc:  # Network-level failures (timeouts, resets, DNS, TLS).
+        raise ToolError(
+            f"Connection to Google failed: {type(exc).__name__}: {exc}. This is usually a "
+            "network or VPN hiccup: retry this call once on its own; if it keeps failing, "
+            "check the internet/VPN connection."
+        ) from exc
 
 
 async def collect(
