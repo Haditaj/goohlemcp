@@ -159,6 +159,12 @@ async def mutate(
         result = await execute(request, retries=0)
     except ToolError as exc:
         _audit(tool, summary, "error", str(exc))
+        if str(exc).startswith("Connection to Google failed"):
+            raise ToolError(
+                f"{exc}\nWARNING: the connection dropped after the change was sent, so Google may "
+                "have applied it anyway. Before retrying, read the current state (list/get tool) "
+                "and only retry if the change is really missing; otherwise you create a duplicate."
+            ) from exc
         raise
     _audit(tool, summary, "ok")
     # Deletes and sitemap submits answer with an empty (or non-JSON) body.

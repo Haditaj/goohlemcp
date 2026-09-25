@@ -67,3 +67,21 @@ async def test_network_errors_become_readable_tool_errors(http, monkeypatch):
     monkeypatch.setattr(http, "request", boom)
     with pytest.raises(ToolError, match="Connection to Google failed: .*timed out"):
         await call("gsc_list_sites")
+
+
+async def test_failed_write_on_network_error_warns_about_duplicates(http, monkeypatch):
+    import socket
+
+    monkeypatch.setenv("GOOHLE_MCP_MODE", "write")
+
+    def boom(*_, **__):
+        raise socket.timeout("timed out")
+
+    monkeypatch.setattr(http, "request", boom)
+    with pytest.raises(ToolError, match="may have applied it anyway"):
+        await call(
+            "gtm_create_entity",
+            workspace_path="accounts/1/containers/2/workspaces/3",
+            entity_type="tags",
+            entity={"name": "x", "type": "html"},
+        )
