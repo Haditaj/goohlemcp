@@ -51,3 +51,30 @@ def changed_fields(**fields: Any) -> tuple[dict[str, Any], str]:
 
 def drop_empty(data: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in data.items() if value not in (None, [], {}, "")}
+
+
+SaveCsv = Annotated[
+    str | None,
+    Field(
+        description=(
+            "Write ALL rows (every page) to this CSV file instead of returning them, and return "
+            "only a summary. Use for large exports, e.g. '/Users/me/moa/auto_ga4.csv'."
+        )
+    ),
+]
+
+
+def write_csv(path: str, rows: list[dict[str, Any]], columns: list[str]) -> dict[str, Any]:
+    """Writes rows to a UTF-8 CSV and returns a short summary for the model."""
+    import csv
+    from pathlib import Path
+
+    target = Path(path).expanduser().resolve()
+    if target.suffix.lower() != ".csv":
+        raise ToolError("save_csv must be a path ending in .csv.")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    return {"saved_to": str(target), "row_count": len(rows), "columns": columns, "preview": rows[:5]}

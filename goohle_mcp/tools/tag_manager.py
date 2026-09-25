@@ -217,7 +217,8 @@ async def gtm_get_workspace_status(workspace_path: WorkspacePath) -> dict[str, A
 
 @mcp.tool(name="gtm_quick_preview", title="Compile-check a GTM workspace", annotations=READ)
 async def gtm_quick_preview(workspace_path: WorkspacePath) -> dict[str, Any]:
-    """Compiles the workspace without saving anything and reports compiler errors.
+    """Compiles the workspace without saving anything and reports compiler errors,
+    plus the compiled tags, triggers and variables (name, type, trigger IDs).
 
     Run before gtm_create_version. Needs a sign-in with write scopes.
     """
@@ -227,9 +228,9 @@ async def gtm_quick_preview(workspace_path: WorkspacePath) -> dict[str, Any]:
     return {
         "compiler_error": bool(response.get("compilerError")),
         "sync_status": response.get("syncStatus"),
-        "tag_count": len(version.get("tag", [])),
-        "trigger_count": len(version.get("trigger", [])),
-        "variable_count": len(version.get("variable", [])),
+        "tags": [_summary(t) for t in version.get("tag", [])],
+        "triggers": [_summary(t) for t in version.get("trigger", [])],
+        "variables": [_summary(v) for v in version.get("variable", [])],
     }
 
 

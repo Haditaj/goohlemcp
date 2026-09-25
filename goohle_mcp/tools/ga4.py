@@ -12,7 +12,7 @@ from pydantic import Field
 from goohle_mcp import config
 from goohle_mcp.app import CHANGE, CREATE, READ, mcp
 from goohle_mcp.google_api import collect, execute, mutate, service
-from goohle_mcp.tools.common import DryRun, changed_fields, drop_empty, resolve_date
+from goohle_mcp.tools.common import DryRun, SaveCsv, changed_fields, drop_empty, resolve_date, write_csv
 
 PropertyId = Annotated[
     str,
@@ -272,6 +272,7 @@ async def ga4_run_report(
     limit: Annotated[int, Field(ge=1, le=10000)] = 100,
     offset: Annotated[int, Field(ge=0)] = 0,
     keep_empty_rows: bool = False,
+    save_csv: SaveCsv = None,
 ) -> dict[str, Any]:
     """Runs a GA4 Data API report and returns flat rows of dimension and metric values.
 
@@ -300,8 +301,31 @@ async def ga4_run_report(
         body["metricFilter"] = metric_filter
     if order_by:
         body["orderBys"] = _order_bys(order_by, metrics, dimensions)
-    response = await execute(_data().properties().runReport(property=property_name(property_id), body=body))
-    return format_report(response, offset)
+    prop = property_name(property_id)
+    if not save_csv:
+        response = await execute(_data().properties().runReport(property=prop, body=body))
+        return format_report(response, offset)
+
+    # Export: fetch every page, keep the rows out of the model's context.
+    body["limit"] = 10000
+    rows: list[dict[str, Any]] = []
+    columns: list[str] = []
+    meta: dict[str, Any] = {}
+    while True:
+        body["offset"] = offset + len(rows)
+        page = format_report(await execute(_data().properties().runReport(property=prop, body=body)), body["offset"])
+        if not columns and page["rows"]:
+            columns = list(page["rows"][0])
+        meta = page.get("metadata", meta)
+        rows.extend(page["rows"])
+        if "next_offset" not in page or len(rows) >= 250000:
+            break
+    if not columns:
+        columns = dimensions + (["dateRange"] if len(date_ranges) > 1 else []) + list(metrics)
+    summary = write_csv(save_csv, rows, columns)
+    if meta:
+        summary["metadata"] = meta
+    return summary
 
 
 @mcp.tool(name="ga4_run_realtime_report", title="Run a GA4 realtime report", annotations=READ)

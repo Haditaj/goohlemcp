@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from goohle_mcp import config
 from goohle_mcp.app import CHANGE, CREATE, READ, mcp
 from goohle_mcp.google_api import execute, mutate, service
-from goohle_mcp.tools.common import DryRun, resolve_date
+from goohle_mcp.tools.common import DryRun, SaveCsv, resolve_date, write_csv
 
 SiteUrl = Annotated[
     str,
@@ -68,6 +68,7 @@ async def gsc_search_analytics(
     data_state: Annotated[
         Literal["final", "all"], Field(description="'all' includes fresh, not-yet-final data.")
     ] = "final",
+    save_csv: SaveCsv = None,
 ) -> dict[str, Any]:
     """Returns clicks, impressions, CTR and average position from Google Search.
 
@@ -90,21 +91,41 @@ async def gsc_search_analytics(
         body["dimensionFilterGroups"] = [
             {"groupType": "and", "filters": [f.model_dump() for f in filters]}
         ]
-    response = await execute(_gsc().searchanalytics().query(siteUrl=_site(site_url), body=body))
-    rows = []
-    for row in response.get("rows", []):
-        item: dict[str, Any] = dict(zip(dims, row.get("keys", [])))
-        item.update(
-            clicks=row.get("clicks", 0),
-            impressions=row.get("impressions", 0),
-            ctr=round(row.get("ctr", 0.0), 4),
-            position=round(row.get("position", 0.0), 1),
-        )
-        rows.append(item)
+    site = _site(site_url)
+
+    async def fetch() -> tuple[list[dict[str, Any]], Any]:
+        response = await execute(_gsc().searchanalytics().query(siteUrl=site, body=body))
+        page = []
+        for row in response.get("rows", []):
+            item: dict[str, Any] = dict(zip(dims, row.get("keys", [])))
+            item.update(
+                clicks=row.get("clicks", 0),
+                impressions=row.get("impressions", 0),
+                ctr=round(row.get("ctr", 0.0), 4),
+                position=round(row.get("position", 0.0), 1),
+            )
+            page.append(item)
+        return page, response.get("responseAggregationType")
+
+    if save_csv:
+        # Export: page through everything in 25k-row chunks.
+        body["rowLimit"] = 25000
+        rows: list[dict[str, Any]] = []
+        while True:
+            body["startRow"] = start_row + len(rows)
+            page, _ = await fetch()
+            rows.extend(page)
+            if len(page) < 25000 or len(rows) >= 500000:
+                break
+        summary = write_csv(save_csv, rows, dims + ["clicks", "impressions", "ctr", "position"])
+        summary["date_range"] = [body["startDate"], body["endDate"]]
+        return summary
+
+    rows, aggregation = await fetch()
     result: dict[str, Any] = {
         "date_range": [body["startDate"], body["endDate"]],
         "rows": rows,
-        "aggregation": response.get("responseAggregationType"),
+        "aggregation": aggregation,
     }
     if len(rows) == row_limit:
         result["next_start_row"] = start_row + row_limit

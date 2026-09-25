@@ -61,3 +61,17 @@ async def test_inspect_url_returns_inspection_result(http):
     result = await call("gsc_inspect_url", site_url="https://example.com/", url="https://example.com/a")
     assert result == {"indexStatusResult": {"verdict": "PASS"}}
     assert http.requests[0]["body"]["inspectionUrl"] == "https://example.com/a"
+
+
+async def test_save_csv_pages_through_everything(http, tmp_path):
+    first = [{"keys": [f"q{i}"], "clicks": 1, "impressions": 2, "ctr": 0.5, "position": 3} for i in range(25000)]
+    http.queue({"rows": first})
+    http.queue({"rows": [{"keys": ["last"], "clicks": 9, "impressions": 9, "ctr": 1, "position": 1}]})
+    out = tmp_path / "gsc.csv"
+    result = await call("gsc_search_analytics", site_url="sc-domain:example.com", dimensions=["query"], save_csv=str(out))
+    assert result["row_count"] == 25001
+    assert http.requests[1]["body"]["startRow"] == 25000
+    lines = out.read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "query,clicks,impressions,ctr,position"
+    assert lines[-1] == "last,9,9,1,1"
+    assert "rows" not in result

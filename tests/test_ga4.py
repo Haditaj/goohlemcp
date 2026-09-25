@@ -135,3 +135,20 @@ async def test_create_property_and_web_stream_requests(http):
     assert prop["would_send"]["body"]["parent"] == "accounts/404"
     stream = await call("ga4_create_web_stream", property_id="55", default_uri="https://example.com", display_name="web", dry_run=True)
     assert stream["would_send"]["body"]["webStreamData"] == {"defaultUri": "https://example.com"}
+
+
+async def test_run_report_save_csv(http, tmp_path):
+    def page(n, total):
+        return {
+            "dimensionHeaders": [{"name": "date"}],
+            "metricHeaders": [{"name": "sessions", "type": "TYPE_INTEGER"}],
+            "rows": [{"dimensionValues": [{"value": "20260901"}], "metricValues": [{"value": "5"}]}] * n,
+            "rowCount": total,
+        }
+    http.queue(page(10000, 10002))
+    http.queue(page(2, 10002))
+    out = tmp_path / "ga4.csv"
+    result = await call("ga4_run_report", property_id="1", metrics=["sessions"], dimensions=["date"], save_csv=str(out))
+    assert result["row_count"] == 10002
+    assert http.requests[1]["body"]["offset"] == 10000
+    assert out.read_text().splitlines()[:2] == ["date,sessions", "20260901,5"]
