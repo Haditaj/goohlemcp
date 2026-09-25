@@ -218,6 +218,13 @@ def describe_http_error(exc: HttpError) -> str:
             "resource. Check the ID with the matching list tool, or grant the account "
             "Editor/Publish rights in the product's admin settings."
         )
+    elif status == 404 and api == "tagmanager" and ("create_version" in (exc.uri or "") or ":publish" in (exc.uri or "")):
+        hint = (
+            "GTM answers 404 when the signed-in account lacks the container permission for this "
+            "step: creating a version needs 'Approve', publishing needs 'Publish' (GTM > Admin > "
+            "User Management > container). Editing tags only needs 'Edit'. Do not retry until the "
+            "permission is raised."
+        )
     elif status == 404:
         hint = "Not found. Check the ID or path with the matching list tool."
     elif status == 429:

@@ -84,3 +84,10 @@ async def test_create_container_and_snippet(http):
     http.queue({"snippet": "<script>..</script>", "noscriptSnippet": "<noscript>..</noscript>"})
     snippet = await call("gtm_get_install_snippet", container_path="accounts/637/containers/9")
     assert snippet == {"head": "<script>..</script>", "body": "<noscript>..</noscript>"}
+
+
+async def test_create_version_404_explains_missing_approve_permission(http, monkeypatch):
+    monkeypatch.setenv("GOOHLE_MCP_MODE", "write")
+    http.queue({"error": {"code": 404, "message": "Not found or permission denied."}}, status=404)
+    with pytest.raises(ToolError, match="'Approve'"):
+        await call("gtm_create_version", workspace_path=WS, name="v")
