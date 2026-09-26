@@ -15,6 +15,9 @@ from google.oauth2 import service_account
 from goohle_mcp import config
 
 READ_SCOPES = [
+    # Identity only: lets `goohle-mcp status` show which Google account is signed in.
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/analytics.readonly",
     "https://www.googleapis.com/auth/webmasters.readonly",
     "https://www.googleapis.com/auth/tagmanager.readonly",
@@ -101,6 +104,9 @@ def login(
     """Runs the browser OAuth flow and stores the resulting token."""
     from google_auth_oauthlib.flow import InstalledAppFlow
 
+    # Google may return the granted scopes in a different form; don't fail on that.
+    os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
     scopes = READ_SCOPES if read_only else WRITE_SCOPES
     flow = InstalledAppFlow.from_client_secrets_file(str(client_secrets), scopes=scopes)
     creds = flow.run_local_server(
@@ -113,3 +119,23 @@ def login(
     _write_private(path, creds.to_json())
     reset_credentials()
     return path
+
+
+def signed_in_email(creds: Credentials) -> str | None:
+    """Returns the Google account email behind the credentials, if Google reveals it."""
+    import json
+
+    import google_auth_httplib2
+    from googleapiclient.http import build_http
+
+    if getattr(creds, "service_account_email", None):
+        return creds.service_account_email
+    request = google_auth_httplib2.Request(build_http())
+    if not creds.valid:
+        creds.refresh(request)
+    response = request(
+        "https://oauth2.googleapis.com/tokeninfo?access_token=" + creds.token, method="GET"
+    )
+    if response.status != 200:
+        return None
+    return json.loads(response.data).get("email")

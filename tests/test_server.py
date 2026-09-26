@@ -85,3 +85,23 @@ async def test_failed_write_on_network_error_warns_about_duplicates(http, monkey
             entity_type="tags",
             entity={"name": "x", "type": "html"},
         )
+
+
+def test_signed_in_email_reads_tokeninfo(monkeypatch):
+    import types
+
+    import google_auth_httplib2
+
+    from goohle_mcp import auth
+
+    class FakeRequest:
+        def __init__(self, *_):
+            pass
+
+        def __call__(self, url, method="GET"):
+            assert "tokeninfo?access_token=tok" in url
+            return types.SimpleNamespace(status=200, data=b'{"email": "me@example.com"}')
+
+    monkeypatch.setattr(google_auth_httplib2, "Request", FakeRequest)
+    creds = types.SimpleNamespace(valid=True, token="tok")
+    assert auth.signed_in_email(creds) == "me@example.com"

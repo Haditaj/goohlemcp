@@ -44,6 +44,11 @@ def _status(_: argparse.Namespace) -> None:
         sys.exit(1)
     scopes = getattr(creds, "scopes", None) or getattr(creds, "granted_scopes", None) or []
     print(f"Credentials:  {type(creds).__module__}.{type(creds).__name__}")
+    try:
+        email = auth.signed_in_email(creds)
+    except Exception as exc:  # Network or refresh problems shouldn't hide the rest.
+        email = f"(could not check: {type(exc).__name__}: {exc})"
+    print(f"Account:      {email or '(unknown - sign in again with goohle-mcp auth to show it)'}")
     for scope in sorted(scopes):
         print(f"  - {scope}")
 
