@@ -23,7 +23,7 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 echo "==> 2/4 Installing goohle-mcp"
-uv tool install --force "$REPO"
+uv tool install --force --reinstall --refresh "$REPO"
 BIN="$(uv tool dir --bin)/goohle-mcp"
 
 echo "==> 3/4 Signing in with Google (a browser window opens)"

@@ -113,6 +113,12 @@ uv tool install "git+https://github.com/haditaj/goohlemcp@claude/vibrant-knuth-o
 
 > بعد از merge شدن در `main`، بخش `@claude/vibrant-knuth-ovrixn` رو می‌تونید حذف کنید.
 
+**آپدیت به آخرین نسخه** (بعدش Claude Code رو ببندید و دوباره باز کنید):
+
+```bash
+uv tool install --force --reinstall --refresh "git+https://github.com/haditaj/goohlemcp@claude/vibrant-knuth-ovrixn"
+```
+
 ### ۳) لاگین با گوگل (فقط یک بار)
 
 ```bash

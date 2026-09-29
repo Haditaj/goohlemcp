@@ -1,6 +1,6 @@
 [project]
 name = "goohle-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "One MCP server for Google Analytics 4, Search Console and Tag Manager: read data and (optionally) make changes from Claude Code."
 readme = "README.md"
 requires-python = ">=3.10"
