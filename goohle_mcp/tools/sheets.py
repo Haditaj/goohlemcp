@@ -92,12 +92,16 @@ async def sheets_append_csv(
         Literal["USER_ENTERED", "RAW"],
         Field(description="USER_ENTERED parses numbers and dates like typing them; RAW stores text as-is."),
     ] = "USER_ENTERED",
+    header_row: Annotated[
+        int, Field(ge=1, le=100, description="Row number of the tab's column-title row (1 unless the tab has notes above it).")
+    ] = 1,
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
     """Appends every data row of a local CSV below the existing rows of a tab.
 
-    The CSV header must match the tab's header row exactly (same names, same order);
-    otherwise nothing is written. An empty tab gets the CSV header first.
+    The CSV header must match the tab's header row (`header_row`) exactly (same names,
+    same order); otherwise nothing is written. If that row is empty, the CSV header is
+    written there first. Rows are added after the last filled row below the header.
     Rows never pass through the conversation, so large exports are fine.
     """
     sid = spreadsheet_id(spreadsheet)
@@ -110,11 +114,11 @@ async def sheets_append_csv(
         raise ToolError("The CSV file is empty.")
     header, data = rows[0], rows[1:]
 
-    got = await execute(_sheets().spreadsheets().values().get(spreadsheetId=sid, range=_a1(tab, "1:1")))
+    got = await execute(_sheets().spreadsheets().values().get(spreadsheetId=sid, range=_a1(tab, f"{header_row}:{header_row}")))
     existing = (got.get("values") or [[]])[0]
     if existing and [h.strip() for h in existing] != [h.strip() for h in header]:
         raise ToolError(
-            f"Column mismatch, nothing written.\nTab '{tab}' header: {existing}\nCSV header:       {header}\n"
+            f"Column mismatch, nothing written.\nTab '{tab}' row {header_row}: {existing}\nCSV header:       {header}\n"
             "Reorder or rename the CSV columns to match the tab exactly."
         )
     if not existing:
@@ -132,7 +136,7 @@ async def sheets_append_csv(
             .values()
             .append(
                 spreadsheetId=sid,
-                range=_a1(tab, "A1"),
+                range=_a1(tab, f"A{header_row}"),
                 valueInputOption=value_input,
                 insertDataOption="INSERT_ROWS",
                 body={"values": chunk},

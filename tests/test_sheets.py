@@ -50,3 +50,12 @@ async def test_sheet_allowlist(http, monkeypatch):
     http.queue({"range": "notes!A1", "values": [["x"]]})
     result = await call("sheets_read_range", spreadsheet=URL, range="notes!A1")
     assert result["values"] == [["x"]]
+
+
+async def test_append_uses_header_row(http, monkeypatch, csv_file):
+    monkeypatch.setenv("GOOHLE_MCP_MODE", "write")
+    http.queue({"values": [["date", "sessions"]]})
+    http.queue({"updates": {"updatedRange": "auto_ga4!A5:B6"}})
+    await call("sheets_append_csv", spreadsheet=SID, tab="auto_ga4", csv_path=str(csv_file), header_row=4)
+    assert "%27auto_ga4%27%214%3A4" in http.requests[0]["uri"] or "auto_ga4%27%214:4" in http.requests[0]["uri"]
+    assert "%27auto_ga4%27%21A4:append" in http.requests[1]["uri"]
