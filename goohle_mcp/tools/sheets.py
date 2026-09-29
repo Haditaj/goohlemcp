@@ -74,13 +74,29 @@ async def sheets_read_range(
     spreadsheet: SpreadsheetId,
     range: Annotated[str, Field(description="A1 range, e.g. \"'auto_ga4'!A1:J50\" or just a tab name.")],
     max_rows: Annotated[int, Field(ge=1, le=5000)] = 200,
+    render: Annotated[
+        Literal["FORMATTED_VALUE", "UNFORMATTED_VALUE", "FORMULA"],
+        Field(description="FORMATTED_VALUE = as displayed; FORMULA = formulas instead of results; "
+                          "UNFORMATTED_VALUE = raw values (real dates come back as serial numbers)."),
+    ] = "FORMATTED_VALUE",
 ) -> dict[str, Any]:
-    """Reads cell values (as displayed). Use it to find the last date already in a tab."""
+    """Reads cell values. Use it to find the last date already in a tab or to inspect formulas."""
     sid = spreadsheet_id(spreadsheet)
-    got = await execute(_sheets().spreadsheets().values().get(spreadsheetId=sid, range=range))
+    got = await execute(
+        _sheets().spreadsheets().values().get(spreadsheetId=sid, range=range, valueRenderOption=render)
+    )
     values = got.get("values", [])
     return {"range": got.get("range"), "row_count": len(values), "values": values[:max_rows],
             "truncated": len(values) > max_rows}
+
+
+def _col(n: int) -> str:
+    """1 -> A, 27 -> AA."""
+    letters = ""
+    while n:
+        n, rem = divmod(n - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
 
 
 @mcp.tool(name="sheets_append_csv", title="Append CSV rows to a tab", annotations=CREATE)
@@ -97,11 +113,14 @@ async def sheets_append_csv(
     ] = 1,
     dry_run: DryRun = False,
 ) -> dict[str, Any]:
-    """Appends every data row of a local CSV below the existing rows of a tab.
+    """Writes every data row of a local CSV into the empty rows right below a tab's data.
 
     The CSV header must match the tab's header row (`header_row`) exactly (same names,
     same order); otherwise nothing is written. If that row is empty, the CSV header is
-    written there first. Rows are added after the last filled row below the header.
+    written there first. The first empty row is found from column A. Rows are written
+    into existing empty cells (never inserted), so formulas elsewhere that point at this
+    tab keep their ranges; rows are added only at the bottom of the grid when it is too
+    short. If any target cell already holds a value or formula, nothing is written.
     Rows never pass through the conversation, so large exports are fine.
     """
     sid = spreadsheet_id(spreadsheet)
@@ -113,6 +132,7 @@ async def sheets_append_csv(
     if not rows:
         raise ToolError("The CSV file is empty.")
     header, data = rows[0], rows[1:]
+    last_col = _col(len(header))
 
     got = await execute(_sheets().spreadsheets().values().get(spreadsheetId=sid, range=_a1(tab, f"{header_row}:{header_row}")))
     existing = (got.get("values") or [[]])[0]
@@ -123,43 +143,89 @@ async def sheets_append_csv(
         )
     if not existing:
         data = [header] + data
+        first = header_row
+    else:
+        col_a = await execute(
+            _sheets().spreadsheets().values().get(spreadsheetId=sid, range=_a1(tab, f"A{header_row + 1}:A"))
+        )
+        first = header_row + 1 + len(col_a.get("values", []))
     if not data:
         return {"appended_rows": 0, "note": "The CSV has no data rows."}
+    last = first + len(data) - 1
+    target = f"A{first}:{last_col}{last}"
+
+    meta = await execute(
+        _sheets().spreadsheets().get(spreadsheetId=sid, fields="sheets.properties(sheetId,title,gridProperties)")
+    )
+    props = next((s["properties"] for s in meta.get("sheets", []) if s["properties"]["title"] == tab), None)
+    if props is None:
+        raise ToolError(f"Tab '{tab}' not found in this spreadsheet.")
+    grid_rows = props.get("gridProperties", {}).get("rowCount", 0)
+    extra_rows = max(0, last - grid_rows)
+
+    if first <= grid_rows:
+        check_end = min(last, grid_rows)
+        occupied = await execute(
+            _sheets().spreadsheets().values().get(
+                spreadsheetId=sid, range=_a1(tab, f"A{first}:{last_col}{check_end}"), valueRenderOption="FORMULA"
+            )
+        )
+        for offset, row in enumerate(occupied.get("values", [])):
+            if any(str(cell).strip() for cell in row):
+                raise ToolError(
+                    f"Nothing written: row {first + offset} of '{tab}' already has content in {target} "
+                    f"(column A is empty there but other columns are not): {row}. "
+                    "Clear those cells or move the data, then try again."
+                )
+
+    if dry_run:
+        await mutate(
+            "sheets_append_csv", _sheets().spreadsheets().values().update(
+                spreadsheetId=sid, range=_a1(tab, target), valueInputOption=value_input, body={"values": []}
+            ),
+            dry_run=True,
+            summary={"method": "PUT", "uri": f"sheets:{sid}/{tab}!{target}",
+                     "body": {"rows": len(data), "grid_rows_added": extra_rows, "csv": str(path)}},
+        )
+        return {
+            "dry_run": True,
+            "tab": tab,
+            "header_ok": True,
+            "writes_header_first": not existing,
+            "target_range": target,
+            "grid_rows_added_at_bottom": extra_rows,
+            "rows_to_append": len(data),
+            "first_rows": data[:3],
+            "last_row": data[-1],
+        }
+
+    if extra_rows:
+        grow = _sheets().spreadsheets().batchUpdate(
+            spreadsheetId=sid,
+            body={"requests": [{"appendDimension": {"sheetId": props["sheetId"], "dimension": "ROWS", "length": extra_rows}}]},
+        )
+        await mutate("sheets_append_csv", grow, dry_run=False,
+                     summary={"method": "POST", "uri": f"sheets:{sid}/{tab}:appendRows", "body": {"rows": extra_rows}})
 
     total = 0
-    last: Any = None
     for start in range(0, len(data), _CHUNK):
         chunk = data[start : start + _CHUNK]
+        row0 = first + start
+        cells = f"A{row0}:{last_col}{row0 + len(chunk) - 1}"
         request = (
             _sheets()
             .spreadsheets()
             .values()
-            .append(
-                spreadsheetId=sid,
-                range=_a1(tab, f"A{header_row}"),
-                valueInputOption=value_input,
-                insertDataOption="INSERT_ROWS",
-                body={"values": chunk},
-            )
+            .update(spreadsheetId=sid, range=_a1(tab, cells), valueInputOption=value_input, body={"values": chunk})
         )
         summary = {
-            "method": "POST",
-            "uri": f"sheets:{sid}/{tab}:append",
+            "method": "PUT",
+            "uri": f"sheets:{sid}/{tab}!{cells}",
             "body": {"rows": len(chunk), "first_row": chunk[0], "last_row": chunk[-1], "csv": str(path)},
         }
-        last = await mutate("sheets_append_csv", request, dry_run=dry_run, summary=summary)
-        if dry_run:
-            return {
-                "dry_run": True,
-                "tab": tab,
-                "header_ok": True,
-                "writes_header_first": not existing,
-                "rows_to_append": len(data),
-                "first_rows": data[:3],
-                "last_row": data[-1],
-            }
+        await mutate("sheets_append_csv", request, dry_run=False, summary=summary)
         total += len(chunk)
-    return {"appended_rows": total, "updated_range": (last or {}).get("updates", {}).get("updatedRange")}
+    return {"appended_rows": total, "updated_range": f"{tab}!{target}", "grid_rows_added_at_bottom": extra_rows}
 
 
 @mcp.tool(name="sheets_write_range", title="Overwrite spreadsheet cells", annotations=CHANGE)

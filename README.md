@@ -48,7 +48,7 @@ Claude با این سرور داده‌ها رو می‌خونه و تحلیل �
 `gtm_set_built_in_variables` · `gtm_create_version` · `gtm_publish_version`
 
 ### Google Sheets (`sheets_*`)
-`sheets_get_info` (تب‌ها و سطر عنوان هر تب) · `sheets_read_range` · `sheets_append_csv` (اضافه کردن ردیف‌های یک فایل CSV به انتهای یک تب؛ اگه ستون‌ها دقیقاً با سطر عنوان تب یکی نباشن، چیزی نوشته نمی‌شه) · `sheets_write_range`
+`sheets_get_info` (تب‌ها و سطر عنوان هر تب) · `sheets_read_range` · `sheets_append_csv` (نوشتن ردیف‌های یک فایل CSV در سطرهای خالی زیر داده‌های یک تب؛ سطر درج نمی‌کنه تا فرمول‌هایی که به این تب اشاره دارن جابه‌جا نشن. اگه ستون‌ها دقیقاً با سطر عنوان تب یکی نباشن یا خونه‌های مقصد خالی نباشن، چیزی نوشته نمی‌شه) · `sheets_read_range` با `render=FORMULA` فرمول‌ها رو نشون می‌ده · `sheets_write_range`
 
 گزارش‌های `ga4_run_report` و `gsc_search_analytics` گزینه‌ی `save_csv` دارن که همه‌ی ردیف‌ها رو مستقیم در فایل CSV ذخیره می‌کنه.
 
